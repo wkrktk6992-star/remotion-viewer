@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>법률 영상 뷰어</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0f0f1a;
+      color: #e8e8f0;
+      font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a1a2e;
+      border-bottom: 1px solid #2a2a4a;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+    }
+    header span {
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 24px;
+    }
+
+    .card {
+      background: #1a1a2e;
+      border: 1px solid #2a2a4a;
+      border-radius: 16px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: #4a4a8a;
+      box-shadow: 0 8px 32px rgba(66, 99, 235, 0.2);
+    }
+
+    .card-thumb {
+      position: relative;
+      background: #0f0f1a;
+      aspect-ratio: 16/9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card-thumb video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .play-btn {
+      position: absolute;
+      width: 56px;
+      height: 56px;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(8px);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    .card:hover .play-btn {
+      background: rgba(99, 102, 241, 0.8);
+    }
+    .play-btn svg { width: 22px; height: 22px; fill: white; margin-left: 4px; }
+
+    .badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: rgba(99, 102, 241, 0.85);
+      color: #fff;
+      backdrop-filter: blur(4px);
+    }
+
+    .card-info {
+      padding: 16px 18px;
+    }
+    .card-info h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #e8e8f0;
+      margin-bottom: 6px;
+    }
+    .card-info p {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    /* 모달 */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: #1a1a2e;
+      border-radius: 20px;
+      overflow: hidden;
+      width: 100%;
+      max-width: 960px;
+      border: 1px solid #2a2a4a;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid #2a2a4a;
+    }
+    .modal-header h2 { font-size: 16px; font-weight: 700; }
+    .close-btn {
+      background: #2a2a4a;
+      border: none;
+      color: #aaa;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    .close-btn:hover { background: #3a3a6a; color: #fff; }
+
+    .modal video {
+      width: 100%;
+      display: block;
+      max-height: 70vh;
+      background: #000;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+    <rect width="24" height="24" rx="6" fill="#6366f1"/>
+    <polygon points="9,7 19,12 9,17" fill="white"/>
+  </svg>
+  <h1>법률 영상 뷰어</h1>
+  <span>개인회생 · 파산 · 새출발기금 FAQ 영상 모음</span>
+</header>
+
+<div class="container">
+  <div class="grid" id="videoGrid"></div>
+</div>
+
+<!-- 모달 -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle"></h2>
+      <button class="close-btn" onclick="closeModal()">✕</button>
+    </div>
+    <video id="modalVideo" controls playsinline></video>
+  </div>
+</div>
+
+<script>
+  const videos = [
+    {
+      id: "BankruptFAQ",
+      title: "파산·면책 FAQ",
+      desc: "개인파산 신청부터 면책까지 자주 묻는 질문",
+      badge: "파산·면책",
+      file: "videos/BankruptFAQ.mp4",
+      date: "2026.04.02"
+    },
+    {
+      id: "NewStartFAQ",
+      title: "새출발기금 FAQ",
+      desc: "새출발기금 신청 조건·방법·혜택 안내",
+      badge: "새출발기금",
+      file: "videos/NewStartFAQ.mp4",
+      date: "2026.04.02"
+    },
+    {
+      id: "RehabFAQ",
+      title: "개인회생 FAQ",
+      desc: "개인회생 절차 전반에 대한 Q&A",
+      badge: "개인회생",
+      file: "videos/RehabFAQ.mp4",
+      date: "2026.04.02"
+    },
+    {
+      id: "RehabFAQ_v2",
+      title: "개인회생 FAQ v2",
+      desc: "개인회생 FAQ 업그레이드 버전",
+      badge: "개인회생",
+      file: "videos/RehabFAQ_v2.mp4",
+      date: "2026.04.02"
+    },
+    {
+      id: "DebtCounselorTutorial",
+      title: "채무상담 튜토리얼",
+      desc: "채무상담 앱 이용 방법 안내 영상",
+      badge: "튜토리얼",
+      file: "videos/DebtCounselorTutorial.mp4",
+      date: "2026.03.26"
+    },
+    {
+      id: "PersonalRehabFAQ",
+      title: "개인회생 FAQ (초판)",
+      desc: "개인회생 FAQ 첫 번째 버전",
+      badge: "개인회생",
+      file: "videos/PersonalRehabFAQ.mp4",
+      date: "2026.03.19"
+    },
+  ];
+
+  const grid = document.getElementById('videoGrid');
+
+  videos.forEach(v => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-thumb">
+        <video src="${v.file}" preload="metadata" muted></video>
+        <div class="badge">${v.badge}</div>
+        <div class="play-btn">
+          <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+        </div>
+      </div>
+      <div class="card-info">
+        <h3>${v.title}</h3>
+        <p>${v.desc} · ${v.date}</p>
+      </div>
+    `;
+    card.addEventListener('click', () => openModal(v));
+    grid.appendChild(card);
+  });
+
+  function openModal(v) {
+    document.getElementById('modalTitle').textContent = v.title;
+    const vid = document.getElementById('modalVideo');
+    vid.src = v.file;
+    vid.play();
+    document.getElementById('modalOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal(e) {
+    if (e && e.target !== document.getElementById('modalOverlay') && e.target !== document.querySelector('.close-btn')) return;
+    if (e && e.currentTarget === document.getElementById('modalOverlay') && e.target !== e.currentTarget) return;
+    const vid = document.getElementById('modalVideo');
+    vid.pause();
+    vid.src = '';
+    document.getElementById('modalOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal({target: document.getElementById('modalOverlay')});
+  });
+</script>
+
+</body>
+</html>
